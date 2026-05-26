@@ -1,11 +1,744 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>하늘날씨 - 오늘의 날씨 정보</title>
+    <meta name="description" content="실시간 날씨 정보와 간결하고 직관적인 일기예보를 제공하는 감성적인 날씨 서비스입니다.">
+    <!-- Google Fonts: Outfit & Pretendard-like Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
+            --card-bg: rgba(30, 41, 59, 0.45);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-glow: rgba(99, 102, 241, 0.15);
+            --sunny-color: #fbbf24;
+            --rainy-color: #38bdf8;
+            --cloudy-color: #cbd5e1;
+            --transition-smooth: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Weather Theme Overrides */
+        .theme-sunny {
+            --bg-gradient: linear-gradient(135deg, #075985 0%, #0369a1 40%, #0284c7 100%);
+            --card-bg: rgba(255, 255, 255, 0.1);
+            --card-border: rgba(255, 255, 255, 0.15);
+            --accent-glow: rgba(253, 224, 71, 0.1);
+        }
+
+        .theme-rainy {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            --card-bg: rgba(15, 23, 42, 0.5);
+            --card-border: rgba(56, 189, 248, 0.15);
+            --accent-glow: rgba(56, 189, 248, 0.1);
+        }
+
+        .theme-cloudy {
+            --bg-gradient: linear-gradient(135deg, #111827 0%, #1f2937 50%, #374151 100%);
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --accent-glow: rgba(255, 255, 255, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 1rem;
+            overflow-x: hidden;
+            transition: var(--transition-smooth);
+        }
+
+        /* Glassmorphism Background Blurs */
+        .blur-sphere-1 {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, rgba(99, 102, 241, 0) 70%);
+            top: -100px;
+            left: -100px;
+            z-index: 0;
+            pointer-events: none;
+            animation: float-slow 12s infinite alternate;
+        }
+
+        .blur-sphere-2 {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(168, 85, 247, 0.25) 0%, rgba(168, 85, 247, 0) 70%);
+            bottom: -150px;
+            right: -150px;
+            z-index: 0;
+            pointer-events: none;
+            animation: float-slow 18s infinite alternate-reverse;
+        }
+
+        @keyframes float-slow {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(50px, 40px) scale(1.1); }
+        }
+
+        /* Dashboard Container */
+        .dashboard {
+            width: 100%;
+            max-width: 480px;
+            background: var(--card-bg);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid var(--card-border);
+            border-radius: 32px;
+            padding: 2.2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                        inset 0 1px 1px rgba(255, 255, 255, 0.1);
+            position: relative;
+            z-index: 1;
+            transition: var(--transition-smooth);
+        }
+
+        /* Header Navigation */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .brand-logo {
+            font-size: 1.5rem;
+            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
+            animation: pulse-glow 3s infinite alternate;
+        }
+
+        @keyframes pulse-glow {
+            0% { transform: scale(1); filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2)); }
+            100% { transform: scale(1.05); filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.5)); }
+        }
+
+        .brand-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #ffffff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* City Select Tabs */
+        .city-selector {
+            display: flex;
+            gap: 0.4rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.3rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .city-tab {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 500;
+            padding: 0.6rem 0.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+            text-align: center;
+        }
+
+        .city-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .city-tab.active {
+            background: rgba(255, 255, 255, 0.12);
+            color: var(--text-primary);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Hero Weather Info */
+        .weather-hero {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            margin-bottom: 2.2rem;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .location-info {
+            margin-bottom: 0.8rem;
+        }
+
+        .city-name {
+            font-size: 2.2rem;
+            font-weight: 700;
+            letter-spacing: -0.8px;
+            margin-bottom: 0.2rem;
+        }
+
+        .date-string {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        /* Main Icon & Temperature */
+        .weather-visual {
+            position: relative;
+            width: 140px;
+            height: 140px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 1rem 0;
+        }
+
+        .weather-icon-svg {
+            width: 100px;
+            height: 100px;
+            filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.2));
+            transition: var(--transition-smooth);
+        }
+
+        /* Animated SVG features */
+        .sun-spin {
+            transform-origin: center;
+            animation: rotate-sun 25s infinite linear;
+        }
+        @keyframes rotate-sun {
+            100% { transform: rotate(360deg); }
+        }
+
+        .cloud-drift {
+            animation: drift-cloud 4s infinite alternate ease-in-out;
+        }
+        @keyframes drift-cloud {
+            0% { transform: translateX(-4px); }
+            100% { transform: translateX(4px); }
+        }
+
+        .rain-fall {
+            animation: fall-rain 1.2s infinite linear;
+        }
+        @keyframes fall-rain {
+            0% { stroke-dashoffset: 0; }
+            100% { stroke-dashoffset: -12; }
+        }
+
+        .temp-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .current-temp {
+            font-size: 4.8rem;
+            font-weight: 300;
+            line-height: 1;
+            letter-spacing: -2px;
+            position: relative;
+            margin-left: 0.8rem; /* alignment adjust */
+        }
+
+        .current-temp::after {
+            content: "°";
+            position: absolute;
+            top: 0;
+            right: -1rem;
+            font-size: 2.8rem;
+            font-weight: 400;
+            color: var(--sunny-color);
+        }
+
+        .weather-condition {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 0.5rem;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 0.4rem 1rem;
+            border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Weather Details Grid */
+        .weather-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.8rem;
+            margin-bottom: 2.2rem;
+            background: rgba(0, 0, 0, 0.15);
+            padding: 1.2rem 1rem;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.02);
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 0.4rem;
+        }
+
+        .detail-icon {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .detail-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .detail-value {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Forecast Section */
+        .forecast-section {
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding-top: 1.8rem;
+        }
+
+        .forecast-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            letter-spacing: -0.2px;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .forecast-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+
+        .forecast-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.8rem 1.2rem;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.02);
+            transition: var(--transition-smooth);
+        }
+
+        .forecast-row:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: scale(1.02);
+        }
+
+        .forecast-day {
+            font-size: 0.9rem;
+            font-weight: 500;
+            width: 70px;
+        }
+
+        .forecast-icon-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1;
+            padding-left: 1.5rem;
+        }
+
+        .forecast-icon {
+            width: 28px;
+            height: 28px;
+        }
+
+        .forecast-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .forecast-temps {
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            gap: 0.6rem;
+        }
+
+        .forecast-high {
+            color: var(--text-primary);
+        }
+
+        .forecast-low {
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        /* Interactive Details Hover Card Animations */
+        .info-button {
+            background: rgba(255, 255, 255, 0.08);
+            border: none;
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-top: 1.5rem;
+            width: 100%;
+            transition: var(--transition-smooth);
+            font-weight: 500;
+        }
+
+        .info-button:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .weather-tip {
+            display: none;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 16px;
+            padding: 1rem;
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            color: #e2e8f0;
+            animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 </head>
 <body>
-    자 다시한번 바꿔볼게요 
+
+    <div class="blur-sphere-1"></div>
+    <div class="blur-sphere-2"></div>
+
+    <main class="dashboard" id="weather-dashboard">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="brand">
+                <span class="brand-logo">✨</span>
+                <span class="brand-title">SkyWeather</span>
+            </div>
+            <span id="live-time" style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">10:08 AM</span>
+        </header>
+
+        <!-- City Selector Tabs -->
+        <nav class="city-selector">
+            <button class="city-tab active" onclick="switchCity('seoul')">서울</button>
+            <button class="city-tab" onclick="switchCity('tokyo')">도쿄</button>
+            <button class="city-tab" onclick="switchCity('newyork')">뉴욕</button>
+            <button class="city-tab" onclick="switchCity('paris')">파리</button>
+        </nav>
+
+        <!-- Main Weather Hero Section -->
+        <section class="weather-hero" id="weather-hero">
+            <div class="location-info">
+                <h1 class="city-name" id="city-display">서울</h1>
+                <p class="date-string" id="date-display">2026년 5월 26일 화요일</p>
+            </div>
+
+            <!-- SVG Weather Graphic Container -->
+            <div class="weather-visual" id="graphic-display">
+                <!-- Injected via Javascript (Partly Cloudy Default) -->
+            </div>
+
+            <div class="temp-display">
+                <span class="current-temp" id="temp-display">18</span>
+                <span class="weather-condition" id="condition-display">맑음 뒤 구름 조금</span>
+            </div>
+        </section>
+
+        <!-- Details Grid -->
+        <section class="weather-details">
+            <div class="detail-item">
+                <span class="detail-icon">💧</span>
+                <span class="detail-label">습도</span>
+                <span class="detail-value" id="humidity-display">45%</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-icon">💨</span>
+                <span class="detail-label">바람</span>
+                <span class="detail-value" id="wind-display">3.2 m/s</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-icon">☀️</span>
+                <span class="detail-label">자외선</span>
+                <span class="detail-value" id="uv-display">보통</span>
+            </div>
+        </section>
+
+        <!-- Forecast Section -->
+        <section class="forecast-section">
+            <h2 class="forecast-title">
+                <span>🗓️</span> 3일간의 날씨 예보
+            </h2>
+            <div class="forecast-grid" id="forecast-list">
+                <!-- Forecast rows will be injected via JS -->
+            </div>
+        </section>
+
+        <button class="info-button" onclick="toggleTip()">오늘의 날씨 코디 팁 보기</button>
+        <div class="weather-tip" id="weather-tip">
+            낮에는 선선하고 바람이 불어 긴소매 셔츠나 얇은 가디건을 걸치기에 알맞은 날씨입니다. 저녁에는 다소 쌀쌀해질 수 있으니 가벼운 외투를 챙기세요!
+        </div>
+    </main>
+
+    <script>
+        // Weather SVGs (Scalable, Animated & Lightweight)
+        const weatherSVGs = {
+            sunny: `
+                <svg class="weather-icon-svg" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle class="sun-spin" cx="32" cy="32" r="14" fill="#fbbf24" filter="drop-shadow(0 0 6px rgba(251,191,36,0.8))"/>
+                    <g class="sun-spin" stroke="#fbbf24" stroke-width="3" stroke-linecap="round">
+                        <line x1="32" y1="6" x2="32" y2="12" />
+                        <line x1="32" y1="52" x2="32" y2="58" />
+                        <line x1="6" y1="32" x2="12" y2="32" />
+                        <line x1="52" y1="32" x2="58" y2="32" />
+                        <line x1="13.62" y1="13.62" x2="17.86" y2="17.86" />
+                        <line x1="46.14" y1="46.14" x2="50.38" y2="50.38" />
+                        <line x1="13.62" y1="50.38" x2="17.86" y2="46.14" />
+                        <line x1="46.14" y1="17.86" x2="50.38" y2="13.62" />
+                    </g>
+                </svg>
+            `,
+            cloudy: `
+                <svg class="weather-icon-svg" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path class="cloud-drift" d="M46 38c0 4.4-3.6 8-8 8H22c-5.5 0-10-4.5-10-10 0-4.9 3.5-9 8.2-9.8C21.4 22.2 26.2 18 32 18c6.4 0 11.7 5.1 12 11.5 2.3.9 4 3.1 4 5.5v3z" fill="#cbd5e1" filter="drop-shadow(0 4px 8px rgba(0,0,0,0.15))"/>
+                    <path class="cloud-drift" style="animation-delay: -2s;" d="M52 42c0 3.3-2.7 6-6 6H34c-4.4 0-8-3.6-8-8 0-3.9 2.8-7.2 6.6-7.8C33.1 29.4 37 26 41.5 26c5.1 0 9.3 4.1 9.6 9.2 1.8.7 3.2 2.5 3.2 4.4v2.4z" fill="#e2e8f0" opacity="0.85" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.1))"/>
+                </svg>
+            `,
+            rainy: `
+                <svg class="weather-icon-svg" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path class="cloud-drift" d="M42 32c0 3.3-2.7 6-6 6H24c-4.4 0-8-3.6-8-8 0-3.9 2.8-7.2 6.6-7.8C23.1 19.4 27 16 31.5 16c5.1 0 9.3 4.1 9.6 9.2 1.8.7 3.2 2.5 3.2 4.4V32z" fill="#475569" filter="drop-shadow(0 4px 6px rgba(0,0,0,0.2))"/>
+                    <g stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" class="rain-fall" stroke-dasharray="8 6">
+                        <line x1="22" y1="42" x2="19" y2="54" />
+                        <line x1="30" y1="42" x2="27" y2="54" />
+                        <line x1="38" y1="42" x2="35" y2="54" />
+                    </g>
+                </svg>
+            `,
+            partlyCloudy: `
+                <svg class="weather-icon-svg" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Sun behind cloud -->
+                    <circle class="sun-spin" cx="40" cy="24" r="10" fill="#fbbf24" filter="drop-shadow(0 0 4px rgba(251,191,36,0.6))"/>
+                    <g class="sun-spin" stroke="#fbbf24" stroke-width="2.2" stroke-linecap="round">
+                        <line x1="40" y1="6" x2="40" y2="10" />
+                        <line x1="40" y1="38" x2="40" y2="42" />
+                        <line x1="22" y1="24" x2="26" y2="24" />
+                        <line x1="54" y1="24" x2="58" y2="24" />
+                    </g>
+                    <!-- Front Cloud -->
+                    <path class="cloud-drift" d="M38 42c0 3.9-3.1 7-7 7H18c-4.9 0-9-4-9-9 0-4.4 3.2-8.1 7.4-8.8C17.1 27.9 20.6 24 25 24c4.3 0 7.9 3.8 8.1 8.2 2.1.6 3.6 2.5 3.6 4.6v5.2z" fill="#cbd5e1" filter="drop-shadow(0 4px 8px rgba(0,0,0,0.25))"/>
+                </svg>
+            `
+        };
+
+        // City Data Mock
+        const cityData = {
+            seoul: {
+                name: '서울',
+                theme: 'theme-cloudy',
+                temp: 18,
+                condition: '맑음 뒤 구름 조금',
+                graphic: 'partlyCloudy',
+                humidity: '45%',
+                wind: '3.2 m/s',
+                uv: '보통',
+                tip: '낮에는 선선하고 바람이 불어 긴소매 셔츠나 얇은 가디건을 걸치기에 알맞은 날씨입니다. 저녁에는 다소 쌀쌀해질 수 있으니 가벼운 외투를 챙기세요!',
+                forecast: [
+                    { day: '내일', tempHigh: 21, tempLow: 13, graphic: 'sunny', desc: '맑음' },
+                    { day: '모레', tempHigh: 19, tempLow: 14, graphic: 'rainy', desc: '비 옴' },
+                    { day: '글피', tempHigh: 22, tempLow: 12, graphic: 'cloudy', desc: '흐림' }
+                ]
+            },
+            tokyo: {
+                name: '도쿄',
+                theme: 'theme-sunny',
+                temp: 23,
+                condition: '맑고 화창함',
+                graphic: 'sunny',
+                humidity: '40%',
+                wind: '2.1 m/s',
+                uv: '높음',
+                tip: '자외선이 강하고 쾌청한 날씨입니다. 야외 활동 시 선크림과 선글라스를 착용하시고 시원한 반소매 옷차림이 이상적입니다!',
+                forecast: [
+                    { day: '내일', tempHigh: 24, tempLow: 16, graphic: 'sunny', desc: '맑음' },
+                    { day: '모레', tempHigh: 22, tempLow: 15, graphic: 'partlyCloudy', desc: '구름조금' },
+                    { day: '글피', tempHigh: 20, tempLow: 14, graphic: 'rainy', desc: '흐리고 비' }
+                ]
+            },
+            newyork: {
+                name: '뉴욕',
+                theme: 'theme-rainy',
+                temp: 14,
+                condition: '봄비 내림',
+                graphic: 'rainy',
+                humidity: '88%',
+                wind: '5.4 m/s',
+                uv: '낮음',
+                tip: '강한 바람을 동반한 봄비 소식이 있습니다. 튼튼한 우산과 방수 코트를 준비하시고 보온에 조금 더 신경 써주세요!',
+                forecast: [
+                    { day: '내일', tempHigh: 16, tempLow: 10, graphic: 'cloudy', desc: '흐림' },
+                    { day: '모레', tempHigh: 18, tempLow: 11, graphic: 'partlyCloudy', desc: '구름조금' },
+                    { day: '글피', tempHigh: 21, tempLow: 13, graphic: 'sunny', desc: '맑음' }
+                ]
+            },
+            paris: {
+                name: '파리',
+                theme: 'theme-cloudy',
+                temp: 16,
+                condition: '하루 종일 흐림',
+                graphic: 'cloudy',
+                humidity: '65%',
+                wind: '3.0 m/s',
+                uv: '보통',
+                tip: '하늘에 구름이 많아 다소 선선하게 느껴질 수 있습니다. 분위기 있는 트렌치코트나 스카프가 잘 어울리는 감성적인 날씨입니다.',
+                forecast: [
+                    { day: '내일', tempHigh: 17, tempLow: 11, graphic: 'partlyCloudy', desc: '구름조금' },
+                    { day: '모레', tempHigh: 19, tempLow: 12, graphic: 'sunny', desc: '대체로 맑음' },
+                    { day: '글피', tempHigh: 18, tempLow: 13, graphic: 'rainy', desc: '소나기' }
+                ]
+            }
+        };
+
+        // Render functions
+        function renderForecast(forecastArray) {
+            const list = document.getElementById('forecast-list');
+            list.innerHTML = '';
+            
+            forecastArray.forEach(item => {
+                const iconSVG = weatherSVGs[item.graphic];
+                const row = document.createElement('div');
+                row.className = 'forecast-row';
+                row.innerHTML = `
+                    <span class="forecast-day">${item.day}</span>
+                    <div class="forecast-icon-wrapper">
+                        <div class="forecast-icon">${iconSVG}</div>
+                        <span class="forecast-desc">${item.desc}</span>
+                    </div>
+                    <div class="forecast-temps">
+                        <span class="forecast-high">${item.tempHigh}°</span>
+                        <span class="forecast-low">${item.tempLow}°</span>
+                    </div>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        function switchCity(cityKey) {
+            const data = cityData[cityKey];
+            if (!data) return;
+
+            // Update Active Tab UI
+            const tabs = document.querySelectorAll('.city-tab');
+            tabs.forEach(tab => {
+                const onClickAttr = tab.getAttribute('onclick');
+                if (onClickAttr.includes(cityKey)) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+
+            // Update Theme
+            document.body.className = data.theme;
+
+            // Update Hero Content with simple animations
+            const hero = document.getElementById('weather-hero');
+            hero.style.opacity = '0';
+            hero.style.transform = 'translateY(10px)';
+
+            setTimeout(() => {
+                document.getElementById('city-display').innerText = data.name;
+                document.getElementById('graphic-display').innerHTML = weatherSVGs[data.graphic];
+                document.getElementById('temp-display').innerText = data.temp;
+                document.getElementById('condition-display').innerText = data.condition;
+                document.getElementById('humidity-display').innerText = data.humidity;
+                document.getElementById('wind-display').innerText = data.wind;
+                document.getElementById('uv-display').innerText = data.uv;
+                
+                // Tip text
+                document.getElementById('weather-tip').innerText = data.tip;
+
+                // Forecast
+                renderForecast(data.forecast);
+
+                hero.style.opacity = '1';
+                hero.style.transform = 'translateY(0)';
+            }, 250);
+        }
+
+        // Live Time updater
+        function updateLiveTime() {
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            const ampm = hours >= 12 ? '오후' : '오전';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // 0 should be 12
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            document.getElementById('live-time').innerText = `${ampm} ${hours}:${minutes}`;
+        }
+
+        // Initialize display
+        window.onload = () => {
+            switchCity('seoul');
+            updateLiveTime();
+            setInterval(updateLiveTime, 30000); // update every 30s
+        };
+
+        // Tip toggle
+        function toggleTip() {
+            const tipEl = document.getElementById('weather-tip');
+            const btn = document.querySelector('.info-button');
+            if (tipEl.style.display === 'block') {
+                tipEl.style.display = 'none';
+                btn.innerText = '오늘의 날씨 코디 팁 보기';
+            } else {
+                tipEl.style.display = 'block';
+                btn.innerText = '코디 팁 접기';
+            }
+        }
+    </script>
 </body>
 </html>
